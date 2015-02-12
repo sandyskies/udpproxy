@@ -14,7 +14,6 @@ typedef struct server_s{
     int server_port;
     unsigned int weight;
     struct server_s* next; 
-    char* log_dir;
 }server_t;
 
 typedef struct conf_s{
@@ -23,7 +22,12 @@ typedef struct conf_s{
     server_t* forward_servers;
     lbm_t loadbalance_method;
     struct timeval timeout_tv;
+    char* log_dir;
+    int process_num; /*number of worker process*/
     
 }conf_t;
 
 
+
+extern conf_t global_conf;
+extern char* PID_FILE;

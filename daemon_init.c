@@ -1,5 +1,6 @@
 #include "daemon_init.h"
 #include "signal_handler.h"
+#include "sys/types.h"
 
 
 int 
@@ -10,10 +11,11 @@ get_maxfd(void){
     return tmp_rlimit.rlim_max;
 }
 
+
 int
 daemon_init(const char *pname, int facility)
 {
-	int		i, maxfd;
+	int		i, maxfd, pid_fd;
 	pid_t	pid;
 
 	if ( (pid = fork()) < 0)
@@ -35,6 +37,15 @@ daemon_init(const char *pname, int facility)
 	/* child 2 continues... */
 
 //	daemon_proc = 1;			/* for err_XXX() functions */
+//
+    if (access(PID_FILE,0) == 0 ){
+        printf("Pid file exists, unclean shutdown before?\n");
+        exit(1)
+    }
+    if( (pid_fd = open(PID_FILE,O_RDWR|O_CREAT)) < 0){
+        printf()
+    }
+    
 
 	chdir("/");				/* change working directory */
 
@@ -43,7 +54,10 @@ daemon_init(const char *pname, int facility)
 	for (i = 0; i < maxfd; i++)
 		close(i);
 
+
+
 	/* redirect stdin, stdout, and stderr to /dev/null */
+
 	open("/dev/null", O_RDONLY);
 	open("/dev/null", O_RDWR);
 	open("/dev/null", O_RDWR);
