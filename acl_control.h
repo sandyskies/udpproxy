@@ -9,5 +9,7 @@ typedef struct access_control_s{
 }access_control_t; 
 
 
-extern access_contorl_t acl_whitelist;
+extern access_control_t acl_whitelist;
+
+extern access_control_t acl_blacklist;
 
