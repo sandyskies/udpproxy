@@ -108,6 +108,7 @@ conf_t parse_conf(char* conf_dir){
                 sp[i].next = &sp[i+1]; 
                 
             }
+            sp[i].count = 0;
         }
       
     }

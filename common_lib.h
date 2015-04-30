@@ -22,6 +22,7 @@ typedef struct server_s{
     int server_port;
     unsigned int weight;
     struct server_s* next; 
+    int count;
 }server_t;
 
 typedef struct conf_s{
