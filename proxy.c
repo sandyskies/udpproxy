@@ -10,11 +10,13 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
+#include <semaphore.h>
 
 #define MAXEVENT 1024
 #define FDSIZE 1024
 
 
+static sem_t global_sem; 
 
 static void set_none_blocking(int sock){
     int opts;
@@ -33,6 +35,21 @@ static void set_none_blocking(int sock){
 }
 
 void* thread_main(){
+    struct sockaddr_in  c_addr;  
+    char buffer[SO_MAX_MSG_SIZE];
+    while(1){
+        bzero(&c_addr,sizeof(c_addr));
+        bzero(buffer,SO_MAX_MSG_SIZE);
+        sem_wait(&global_sem);
+        if(deque(&c_addr, buffer)){
+            log_warning("queue is empty, wait for main thread notify.");
+            continue;  
+        }
+         
+        
+        
+    }   
+    
 
 }
 static void add_event(int epollfd, int fd, int state){
@@ -52,6 +69,7 @@ void do_porxy(int listenfd){
     struct epoll_event events[MAXEVENT];
     struct sockaddr_in src_buf;
     int addrlen = sizeof(struct sockaddr_in);
+    sem_init(&global_sem, 0, MAXLEN);
 
     char recv_buf[SO_MAX_MSG_SIZE];
     set_none_blocking(listenfd);
@@ -88,6 +106,7 @@ void do_porxy(int listenfd){
                   log_error("queue is full") ;
                   continue; 
                 }
+                sem_post(&global_sem);
             }
         }   
     }

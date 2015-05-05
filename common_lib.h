@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "acl_control.h"
 
 
 #ifndef SO_MAX_MSG_SIZE
@@ -32,6 +33,7 @@ typedef struct conf_s{
     lbm_t loadbalance_method;
     int timeout;
     int process_num; /*number of worker process*/
+    access_control_t *acl_rules;
     
 }conf_t;
 

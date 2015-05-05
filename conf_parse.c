@@ -67,6 +67,7 @@ conf_t parse_conf(char* conf_dir){
     char* buf;
     char* out_pointer = NULL; //for split servers
     char* inner_pointer = NULL; //for split ip  port weight 
+    access_control_t *ap;
     conf_t conf_result;
     server_t *sp; //server_t link list head
     if((tmp_p = getKeyValue(conf_dir, "global","listen")) == NULL){
@@ -97,12 +98,12 @@ conf_t parse_conf(char* conf_dir){
             buf = NULL; 
         }
         c = count(p) ; //how many servers
-        sp = malloc((c/3)*sizeof(server_t));
+        sp = (server_t *)malloc((c/3)*sizeof(server_t));
         for(i=0,j=0;j < c; j++,i++){
             inet_aton(p[j], &(sp[i].server_addr));
             sp[i].server_port = atoi(p[++j]);
             sp[i].weight = (unsigned int)atoi(p[++j]);
-            if(i == c){
+            if(i == c/3){
                 sp[i].next = NULL;
             }else{
                 sp[i].next = &sp[i+1]; 
@@ -147,6 +148,39 @@ conf_t parse_conf(char* conf_dir){
        conf_result.process_num = default_process_num;
     }else{
        conf_result.process_num = atoi(tmp_p);
+    }   
+    if((tmp_p = getKeyValue(conf_dir, "global","white_lists")) == NULL){
+       log_warning("unconfigured w whilte_lists, all is able"); 
+     // bzero(conf_result.acl_rules,sizeof(conf_result.acl_rules));
+        conf_result.acl_rules = NULL;
+    }else{
+        for(i=0; i<1024; i++){
+            p[i] = NULL;
+        }
+        i = 0;
+        out_pointer = NULL;
+        inner_pointer = NULL;
+        buf = tmp_p;
+        while(p[i]=strtok_r(buf, ",", &out_pointer)){
+            buf = p[i];
+            while((p[i] = strtok_r(buf, "/", &inner_pointer)) != NULL){
+                i++;
+                buf = NULL;
+            }
+            buf = NULL;
+        }
+        c = count(p);
+        ap =(access_control_t *) malloc((c/2)* sizeof(access_control_t));
+        for(i=0,j=0; j <c; j++,i++){
+            ap[i].addr = inet_addr(p[j]);
+            ap[i].mask = inet_addr(p[++j]);
+            if(i == c/2 ){
+                ap[i].next = NULL;
+            }else{
+                ap[i].next = &ap[i+1];
+            }
+            ap[i].access = 1;
+        }
     }   
     return conf_result;
     
