@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "acl_control.h"
+#include <time.h>
 
 
 #ifndef SO_MAX_MSG_SIZE
@@ -37,18 +38,14 @@ typedef struct conf_s{
     
 }conf_t;
 
-typedef struct msg_buffer_s{
-    char buffer[SO_MAX_MSG_SIZE];
-    size_t size;
-    struct msg_buffer_s *next;
-}msg_buffer_t;
 
 typedef struct connection_s{
-    msg_buffer_t* read_buffer;
-    int incoming_fd;
+    char buffer[SO_MAX_MSG_SIZE];
     int outgoing_fd;
+    int timeout_fd;
     struct sockaddr_in incoming_addr;
     struct sockaddr_in outgoing_addr;
+    unsigned int retry_time;
     struct connection_s *next;
 }connection_t;
 
