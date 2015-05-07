@@ -1,11 +1,4 @@
 #include "conf_parse.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#ifndef _COMMON_LIB_H
-#define _COMMON_LIB_H
-#endif
 
 const int default_listen_port = 1753;
 const lbm_t default_lb_method = rr;

@@ -1,8 +1,3 @@
-#include "conf_parse.h" 
-#ifndef _COMMON_LIB_H_
-#define _COMMON_LIB_H_
-#endif
-#include "daemon_init.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h> //for exit(0)
@@ -12,7 +7,14 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <unistd.h> //for getopt
+#include "daemon_init.h"
 #include "proxy.h"
+#include "conf_parse.h"
+#ifndef _COMMON_LIB_H_
+#define _COMMON_LIB_H_
+#include "common_lib.h"
+#endif
+
 
 
 

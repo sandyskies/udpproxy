@@ -37,10 +37,11 @@ daemon_init(const char *pname, int facility)
 //
     if (access(PID_FILE,0) == 0 ){
         printf("Pid file exists, unclean shutdown before?\n");
-        exit(1)
+        exit(1);
     }
     if( (pid_fd = open(PID_FILE,O_RDWR|O_CREAT)) < 0){
-        printf()
+        printf("crate fail.");
+        exit(1);
     }
     
 

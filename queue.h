@@ -3,6 +3,11 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#ifndef _COMMON_LIB_H_
+#define _COMMON_LIB_H_
+#include "common_lib.h"
+#endif
+
 
 #define MAXLEN 1024
 #define CAS __sync_bool_compare_and_swap

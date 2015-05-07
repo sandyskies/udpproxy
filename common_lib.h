@@ -4,8 +4,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "acl_control.h"
 #include <time.h>
+#include "acl_control.h"
 
 
 #ifndef SO_MAX_MSG_SIZE
@@ -52,7 +52,7 @@ typedef struct connection_s{
 
 
 extern struct conf_s global_conf;
-extern int DEBUG;
+extern bool DEBUG;
 extern char* PID_FILE;
 
 
