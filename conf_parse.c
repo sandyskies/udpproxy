@@ -59,7 +59,7 @@ static int count(char** a){
     return res;
 }
 
-conf_t parse_conf(char* conf_dir){
+void parse_conf(char* conf_dir, struct conf_s *cp){
     int i = 0, j = 0, c = 0;
     char* tmp_p = NULL;  //for get config.
     char* tmp_v = NULL;
@@ -68,20 +68,20 @@ conf_t parse_conf(char* conf_dir){
     char* out_pointer = NULL; //for split servers
     char* inner_pointer = NULL; //for split ip  port weight 
     access_control_t *ap;
-    conf_t conf_result;
+    //conf_t conf_result;
     server_t *sp; //server_t link list head
     if((tmp_p = getKeyValue(conf_dir, "global","listen")) == NULL){
        log_warning("listen derective undefined, use default address 0.0.0.0 "); 
-       conf_result.listen_addr.s_addr = htonl(INADDR_ANY);
+       cp->listen_addr.s_addr = htonl(INADDR_ANY);
     }else{
        inet_aton(tmp_p, &global_conf.listen_addr); 
     }
 
     if((tmp_p = getKeyValue(conf_dir, "global","port")) == NULL){
        log_warning("port derective undefined, use default address 1753 "); 
-       conf_result.listen_port = default_listen_port;
+       cp->listen_port = default_listen_port;
     }else{
-       conf_result.listen_port = atoi(tmp_p);
+       cp->listen_port = atoi(tmp_p);
     }
 
     if((tmp_p = getKeyValue(conf_dir, "global","backends")) == NULL){
@@ -116,43 +116,43 @@ conf_t parse_conf(char* conf_dir){
 
     if((tmp_p = getKeyValue(conf_dir, "global","lb_method")) == NULL){
        log_warning("Unkonw loadbalance method ,use default round robin."); 
-       conf_result.loadbalance_method = (lbm_t)1;
+       cp->loadbalance_method = (lbm_t)1;
     }else{
         i = atoi(tmp_p);
         switch(i){
             case 1:
-                conf_result.loadbalance_method = (lbm_t)1;
+                cp->loadbalance_method = (lbm_t)1;
                 break;
             case 2:
-                conf_result.loadbalance_method = (lbm_t)2;
+                cp->loadbalance_method = (lbm_t)2; /*todo*/
                 break;
             case 3:
-                conf_result.loadbalance_method = (lbm_t)3;
+                cp->loadbalance_method = (lbm_t)3;
                 break;
             case 4:
-                conf_result.loadbalance_method = (lbm_t)4;
+                cp->loadbalance_method = (lbm_t)4;
                 break;
             default:
                 log_warning("unknow lb method, use default round robin");
-                conf_result.loadbalance_method = (lbm_t)1;
+                cp->loadbalance_method = (lbm_t)1;
         }
     }
     if((tmp_p = getKeyValue(conf_dir, "global","timeout")) == NULL){
        log_warning("unconfigured timeout ,use default 1s"); 
-       conf_result.timeout = default_timeout;
+       cp->timeout = default_timeout;
     }else{
-       conf_result.timeout = atoi(tmp_p);
+       cp->timeout = atoi(tmp_p);
     }   
     if((tmp_p = getKeyValue(conf_dir, "global","worker_num")) == NULL){
        log_warning("unconfigured worker_num ,use default 8"); 
-       conf_result.process_num = default_process_num;
+       cp->process_num = default_process_num;
     }else{
-       conf_result.process_num = atoi(tmp_p);
+       cp->process_num = atoi(tmp_p);
     }   
     if((tmp_p = getKeyValue(conf_dir, "global","white_lists")) == NULL){
        log_warning("unconfigured w whilte_lists, all is able"); 
      // bzero(conf_result.acl_rules,sizeof(conf_result.acl_rules));
-        conf_result.acl_rules = NULL;
+        cp->acl_rules = NULL;
     }else{
         for(i=0; i<1024; i++){
             p[i] = NULL;
@@ -182,7 +182,6 @@ conf_t parse_conf(char* conf_dir){
             ap[i].access = 1;
         }
     }   
-    return conf_result;
     
 }
 

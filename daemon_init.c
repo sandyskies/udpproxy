@@ -1,6 +1,4 @@
 #include "daemon_init.h"
-#include "signal_handler.h"
-#include "sys/types.h"
 
 
 int 
@@ -28,7 +26,6 @@ daemon_init(const char *pname, int facility)
 	if (setsid() < 0)			/* become session leader */
 		return (-1);
 
-	signal(SIGHUP, sighup_handler);
 	if ( (pid = fork()) < 0)
 		return (-1);
 	else if (pid)

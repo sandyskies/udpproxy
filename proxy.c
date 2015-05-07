@@ -1,24 +1,8 @@
 #include "proxy.h"
-#include <stdlib.h>
-#include "common_lib.h"
-#include <pthread.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/epoll.h>
-#include "queue.h"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <errno.h>
-#include <semaphore.h>
-#include <stdio.h>
-#include <sys/timerfd.h>
-
-#define MAXEVENT 1024
-#define FDSIZE 1024
 
 
 static sem_t global_sem; 
+pthread_mutex_t mutex;
 
 static void set_none_blocking(int sock){
     int opts;
@@ -76,6 +60,7 @@ static connection_t* in_list(connection_t *head, connection_t *node){
 static connection_t* del_list(connection_t *head, connection_t *node){
     connection_t *tmp = head;
     connection_t *tmp2 = NULL;
+    server_t *p = global_conf.forward_servers;
     if(tmp == NULL){
         return NULL;
     }    
@@ -84,9 +69,21 @@ static connection_t* del_list(connection_t *head, connection_t *node){
 
             if(tmp == head){
                 head = head->next;
+                while(p){
+                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr){
+                        p->count--;
+                    }
+                    p = p->next;
+                }
                 free(tmp);
                 return head;
             }else{
+                while(p){
+                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr){
+                        p->count--;
+                    }
+                    p = p->next;
+                }
                 tmp2->next = tmp->next;
                 free(tmp);
                 return head;
@@ -124,13 +121,17 @@ void* thread_main(void *argv){
     struct sockaddr_in  c_addr;  
     struct sockaddr_in server_addr;
     char buffer[SO_MAX_MSG_SIZE];
+    char recv_buffer[SO_MAX_MSG_SIZE];
     char* log_s;
     int proxy_event_fd;
     int send_fd;
-    int ret, i, send_ret,j;
+    int ret, i, send_ret,j,recv_size;
+    int sa_size = sizeof(struct sockaddr);
+    struct sockaddr tmp_addr;
     int timeout_fd;
     int ret_fd;
     int type;
+    int flag = 0;
     int listen_fd = *((int *)argv);
     struct epoll_event events[MAXEVENT];
     struct itimerspec new_timeout = {
@@ -159,7 +160,9 @@ void* thread_main(void *argv){
                 sprintf(log_s , "access_deny for client: %s\n",inet_ntoa(c_addr.sin_addr) );
                 log_info(log_s);
             }
-           // server_addr = pick_up_one(); todo
+            pthread_mutex_lock(&mutex);
+            server_addr = pick_up_one();
+            pthread_mutex_lock(&mutex);
             send_fd = socket(AF_INET,SOCK_DGRAM,0);
             while(1){
                 if((ret = sendto(send_fd, buffer, strlen(buffer), 0 ,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))) < 0){
@@ -180,7 +183,7 @@ void* thread_main(void *argv){
             add_event(proxy_event_fd, timeout_fd, EPOLLIN);
             tmp_cp = (connection_t*)malloc(sizeof(connection_t));
             format_cnode(tmp_cp,buffer, send_fd, timeout_fd, c_addr, server_addr);
-            head = in_list(head, tmp_cp); //todo 
+            head = in_list(head, tmp_cp);  
 
         }  
         if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, 0 )) < 0){
@@ -191,21 +194,25 @@ void* thread_main(void *argv){
         }else{
             for(i=0; i < ret; i++){
                 ret_fd = events[i].data.fd;
-                type = search_list(ret_fd, head, &tmp_cp); //todo
+                type = search_list(ret_fd, head, &tmp_cp); 
                 if(type == 1){
                     /*timeout happens*/
+                    flag = 0;
                     for(j=0; j<ret; j++){
                         if(events[j].data.fd == tmp_cp->outgoing_fd){
-                            sendto(listen_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
+                            /*something to read */
 
+                            bzero(recv_buffer,SO_MAX_MSG_SIZE );
+                            recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
+                            sendto(listen_fd, recv_buffer, recv_size ,0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
                             del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                             del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                            head = del_list(head, tmp_cp); //todo, remember to free the memory.
+                            head = del_list(head, tmp_cp); 
+                            flag = 1;
                         }
                     }
-                    if(tmp_cp->retry_time == 0){
+                    if(tmp_cp->retry_time == 0 && flag == 0){
                         sendto(listen_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
-                        
                         timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
                         timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
                         del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
@@ -215,7 +222,7 @@ void* thread_main(void *argv){
                     }else{
                             del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                             del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                            head = del_list(head, tmp_cp); //todo, remember to free the memory.
+                            head = del_list(head, tmp_cp); 
                     }
 
 
@@ -223,7 +230,9 @@ void* thread_main(void *argv){
                 }else{
                     /* data to read*/
                     while(1){
-                        if((send_ret = sendto(listen_fd, tmp_cp->buffer, strlen(tmp_cp->buffer), 0 ,(struct sockaddr*)&tmp_cp->incoming_addr,sizeof(struct sockaddr))) < 0){
+                        bzero(recv_buffer,SO_MAX_MSG_SIZE );
+                        recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
+                        if((send_ret = sendto(listen_fd, recv_buffer, recv_size, 0 ,(struct sockaddr*)&tmp_cp->incoming_addr,sizeof(struct sockaddr))) < 0){
                             if(ret == EINTR){
                                 continue;
                             }else{
@@ -237,7 +246,7 @@ void* thread_main(void *argv){
                     }
                     del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                     del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                    head = del_list(head, tmp_cp); //todo, remember to free the memory.
+                    head = del_list(head, tmp_cp); 
 
                 }
             }
@@ -258,6 +267,7 @@ void do_porxy(int listenfd){
     struct sockaddr_in src_buf;
     int addrlen = sizeof(struct sockaddr_in);
     sem_init(&global_sem, 0, MAXLEN);
+    pthread_mutex_init(&mutex, NULL);
 
     char recv_buf[SO_MAX_MSG_SIZE];
     set_none_blocking(listenfd);

@@ -12,6 +12,7 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <unistd.h> //for getopt
+#include "proxy.h"
 
 
 
@@ -53,7 +54,7 @@ void do_main_loop(){
     server_addr.sin_port = htons(global_conf.listen_port);
     bind(listen_sock, (struct sockaddr *) &server_addr, sizeof(server_addr));
     check_error("Error happends while binding socket.");
-    do_prory(listen_sock); 
+    do_proxy(listen_sock); 
 }
 
 
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]){
         }
     }     
     if (access(conf_dir, 0) == 0){
-        global_conf = parse_conf(conf_dir); //unfinished
+        parse_conf(conf_dir, &global_conf); 
     }
     if(daemonize){
         daemon_init(pname,LOG_USER); 

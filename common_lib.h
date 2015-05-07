@@ -12,9 +12,9 @@
 #define SO_MAX_MSG_SIZE 65535
 #endif
 
-typedef enum loadbalance_argirthm{
+typedef enum loadbalance_algorithm{
     rr=1, 
-    wrr, 
+    wrr, //todo 
     lc, 
     wlc
 }lbm_t;
@@ -51,7 +51,7 @@ typedef struct connection_s{
 
 
 
-extern conf_t global_conf;
+extern struct conf_s global_conf;
 extern int DEBUG;
 extern char* PID_FILE;
 
