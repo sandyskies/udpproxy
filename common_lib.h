@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include "acl_control.h"
+#include <stdio.h>
 
 
 #ifndef SO_MAX_MSG_SIZE
@@ -62,3 +63,4 @@ void log_debug(char *log_string);
 void log_info(char *log_string);
 void log_error(char *log_string);
 void log_warning(char *log_string);
+void debug_print(char * s1, char *s2);

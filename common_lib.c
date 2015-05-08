@@ -21,3 +21,8 @@ void log_warning(char *log_string){
 void log_error(char *log_string){
     syslog(LOG_ERR,"%s\n", log_string);
 }
+void debug_print(char* s1, char* s2){
+    if(DEBUG){
+        printf("%s %s\n",s1,s2);
+    }
+}
