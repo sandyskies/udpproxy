@@ -29,8 +29,7 @@ char*   getKeyValue(char *filename, char *section, char *key){
     while (fgets(line, 255, fp) != NULL){
         //delete the  newline
         value = strchr(line,'\n');
-        *value = 0;
-
+        *value = '\0';
         if (flag){
             skey = strtok(line, seps);
             if (strcmp(skey , key) == 0){
@@ -67,6 +66,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
        log_warning("listen derective undefined, use default address 0.0.0.0 "); 
        cp->listen_addr.s_addr = htonl(INADDR_ANY);
     }else{
+       
        inet_aton(tmp_p, &global_conf.listen_addr); 
     }
 
