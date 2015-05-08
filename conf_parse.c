@@ -10,15 +10,15 @@ const int default_process_num = 8;
 
 
 char*   getKeyValue(char *filename, char *section, char *key){
-    char line[255];
-    char sectname[255];
+    char line[1024];
+    char sectname[1024];
     char *skey, *value;
     char seps[] = "=";
     bool flag = false;
     FILE *fp = fopen(filename,"r");
     assert(fp != NULL);
     //process the section and line
-    memset(line,0,255);
+    memset(line,0,1024);
     if (!strchr(section, '[')){
         strcpy(sectname,"[");
         strcat(sectname,section);
@@ -26,7 +26,7 @@ char*   getKeyValue(char *filename, char *section, char *key){
     }else{
         strcpy(sectname,section);
     }
-    while (fgets(line, 255, fp) != NULL){
+    while (fgets(line, 1024, fp) != NULL){
         //delete the  newline
         value = strchr(line,'\n');
         *value = '\0';
@@ -69,6 +69,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
        
        inet_aton(tmp_p, &global_conf.listen_addr); 
     }
+    tmp_p = NULL;
 
     if((tmp_p = getKeyValue(conf_dir, "global","port")) == NULL){
        log_warning("port derective undefined, use default address 1753 "); 
@@ -76,6 +77,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
     }else{
        cp->listen_port = atoi(tmp_p);
     }
+    tmp_p = NULL;
 
     if((tmp_p = getKeyValue(conf_dir, "global","backends")) == NULL){
         log_error("unkonw backends, use backends directive for configuration."); 
@@ -106,6 +108,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
         }
       
     }
+    tmp_p = NULL;
 
     if((tmp_p = getKeyValue(conf_dir, "global","lb_method")) == NULL){
        log_warning("Unkonw loadbalance method ,use default round robin."); 
@@ -130,18 +133,21 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
                 cp->loadbalance_method = (lbm_t)1;
         }
     }
+    tmp_p = NULL;
     if((tmp_p = getKeyValue(conf_dir, "global","timeout")) == NULL){
        log_warning("unconfigured timeout ,use default 1s"); 
        cp->timeout = default_timeout;
     }else{
        cp->timeout = atoi(tmp_p);
     }   
+    tmp_p = NULL;
     if((tmp_p = getKeyValue(conf_dir, "global","worker_num")) == NULL){
        log_warning("unconfigured worker_num ,use default 8"); 
        cp->process_num = default_process_num;
     }else{
        cp->process_num = atoi(tmp_p);
     }   
+    tmp_p = NULL;
     if((tmp_p = getKeyValue(conf_dir, "global","white_lists")) == NULL){
        log_warning("unconfigured w whilte_lists, all is able"); 
      // bzero(conf_result.acl_rules,sizeof(conf_result.acl_rules));
