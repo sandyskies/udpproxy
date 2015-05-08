@@ -256,7 +256,7 @@ void* thread_main(void *argv){
 
 
 
-void do_porxy(int listenfd){
+void do_proxy(int listenfd){
     int i;
     pthread_t tid;
     int listen_event_fd;

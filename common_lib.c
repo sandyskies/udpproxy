@@ -7,17 +7,17 @@ char* PID_FILE = "/var/run/udpproxy.pid";
 
 
 void log_debug(char *log_string){
-    syslog(LOG_INFO, log_string);
+    syslog(LOG_INFO,"%s\n", log_string);
 }
 
 void log_info(char *log_string){
-    syslog(LOG_INFO, log_string);
+    syslog(LOG_INFO,"%s\n", log_string);
 }
 
 void log_warning(char *log_string){
-    syslog(LOG_WARNING, log_string);
+    syslog(LOG_WARNING,"%s\n", log_string);
 }
 
 void log_error(char *log_string){
-    syslog(LOG_ERR, log_string);
+    syslog(LOG_ERR,"%s\n", log_string);
 }
