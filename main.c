@@ -40,13 +40,16 @@ void check_error(const char *reason){
     }
     
 }
+void rm_pidfile(void){
+   unlink(PID_FILE); 
+}
 
 void do_main_loop(){
     int on = 1;  
     int listen_sock;
     pid_t pid;
     struct sockaddr_in server_addr;
-
+    errno = 0;
     listen_sock = socket(AF_INET,SOCK_DGRAM,0);
     check_error("Error happens while create socket");
     setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -67,6 +70,11 @@ int main(int argc, char* argv[]){
     char* conf_dir;
     bool daemonize = false;
     const char* pname = "udpproxy";
+    atexit(rm_pidfile);
+    if(argc == 1){
+        print_help();
+        exit(0);
+    }
     
     while((ch=getopt(argc,argv,"c:dhD"))!=-1){
         switch(ch){

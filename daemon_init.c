@@ -15,6 +15,7 @@ daemon_init(const char *pname, int facility)
 {
 	int		i, maxfd, pid_fd;
 	pid_t	pid;
+    char pid_s[64];
 
 	if ( (pid = fork()) < 0)
 		return (-1);
@@ -40,8 +41,11 @@ daemon_init(const char *pname, int facility)
         exit(1);
     }
     if( (pid_fd = open(PID_FILE,O_RDWR|O_CREAT)) < 0){
-        printf("crate fail.");
+        perror("open(pid_file)");
         exit(1);
+    }else{
+        sprintf(pid_s, "%d\n",getpid());
+        write(pid_fd, pid_s, strlen(pid_s));
     }
     
 

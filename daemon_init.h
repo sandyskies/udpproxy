@@ -8,6 +8,7 @@
 #include    <fcntl.h>
 #include    <unistd.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifndef _COMMON_LIB_H_
 #define _COMMON_LIB_H_

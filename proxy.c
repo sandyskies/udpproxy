@@ -186,7 +186,7 @@ void* thread_main(void *argv){
             head = in_list(head, tmp_cp);  
 
         }  
-        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, 0 )) < 0){
+        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, global_conf.timeout )) < 0){
             log_error("epoll_wait()");
             continue;
         }else if(ret == 0){
