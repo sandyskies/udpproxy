@@ -187,6 +187,7 @@ void* thread_main(void *argv){
 
         }  
         if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, global_conf.timeout )) < 0){
+            log_debug(log_s);
             log_error("epoll_wait()");
             continue;
         }else if(ret == 0){
@@ -289,7 +290,7 @@ void do_proxy(int listenfd){
         while(1){
             bzero(recv_buf, SO_MAX_MSG_SIZE);
             bzero ( &src_buf, sizeof(src_buf));  
-            size =  recvfrom(listen_event_fd, recv_buf, SO_MAX_MSG_SIZE, 0, (struct sockaddr *)&src_buf, &addrlen);
+            size =  recvfrom(listenfd, recv_buf, SO_MAX_MSG_SIZE, 0, (struct sockaddr *)&src_buf, &addrlen);
             if(size){
                 if(size == EWOULDBLOCK  || size == EAGAIN){
                     break;
