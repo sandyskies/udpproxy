@@ -106,6 +106,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
             }
             sp[i].count = 0;
         }
+        cp->forward_servers = sp;
       
     }
     tmp_p = NULL;
@@ -180,6 +181,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
             }
             ap[i].access = 1;
         }
+        cp->acl_rules = ap;
     }   
     
 }

@@ -6,7 +6,7 @@ struct sockaddr_in pick_up_one(){
     struct sockaddr_in server_addr;
     static server_t *now;
     static int first = 0;
-    if(first = 0){
+    if(first == 0){
         now = global_conf.forward_servers;
         first = 1;
     }

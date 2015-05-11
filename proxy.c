@@ -122,7 +122,7 @@ void* thread_main(void *argv){
     struct sockaddr_in server_addr;
     char buffer[SO_MAX_MSG_SIZE];
     char recv_buffer[SO_MAX_MSG_SIZE];
-    char* log_s;
+    char log_s[100];
     int proxy_event_fd;
     int send_fd;
     int ret, i, send_ret,j,recv_size;
@@ -162,7 +162,7 @@ void* thread_main(void *argv){
             }
             pthread_mutex_lock(&mutex);
             server_addr = pick_up_one();
-            pthread_mutex_lock(&mutex);
+            pthread_mutex_unlock(&mutex);
             send_fd = socket(AF_INET,SOCK_DGRAM,0);
             while(1){
                 errno = 0 ;
@@ -178,6 +178,7 @@ void* thread_main(void *argv){
                     break;
                 }   
             }        
+            log_debug("sento sucess");
             add_event(proxy_event_fd, send_fd, EPOLLIN);
             timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
             timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
@@ -194,11 +195,13 @@ void* thread_main(void *argv){
         }else if(ret == 0){
             continue;
         }else{
+            log_debug("events happens");
             for(i=0; i < ret; i++){
                 ret_fd = events[i].data.fd;
                 type = search_list(ret_fd, head, &tmp_cp); 
                 if(type == 1){
                     /*timeout happens*/
+                    log_debug("timeout happens");
                     flag = 0;
                     for(j=0; j<ret; j++){
                         if(events[j].data.fd == tmp_cp->outgoing_fd){
