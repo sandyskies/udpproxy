@@ -20,7 +20,11 @@ struct sockaddr_in pick_up_one(){
         server_addr.sin_port = htons(p->server_port); 
         server_addr.sin_addr = p->server_addr;
         p->count++;
-        now = now->next;
+        if(now->next == NULL){
+            now = global_conf.forward_servers;
+        }else{
+            now = now->next;
+        }
         return server_addr;
     }
     if(global_conf.loadbalance_method == lc){

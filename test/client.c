@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
         bzero(recv_buffer,65535);
         ret = recvfrom(listen_sock,recv_buffer,65535,0,(struct sockaddr*)&client_addr,&addrlen);
             if(ret <0){
-                if (ret == EINTR){
+                if (errno == EINTR){
                     continue;
                 }else{
                     exit(2);

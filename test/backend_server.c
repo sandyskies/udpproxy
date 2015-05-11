@@ -27,14 +27,16 @@ int main(int argc, char* argv[]){
         bzero(recv_buffer,65535);
         ret = recvfrom(listen_sock,recv_buffer,65535,0,(struct sockaddr*)&client_addr,&addrlen);
             if(ret <0){
-                if (ret == EINTR){
+                if (errno == EINTR){
                     continue;
                 }else{
                     exit(2);
                 }
             }
-        recv_buffer[ret] = '\0';
-        sendto(listen_sock, recv_buffer, ret, 0,(struct sockaddr*)&client_addr, addrlen );
+        //recv_buffer[ret] = '\0';
+        strcat(recv_buffer, argv[1]);
+        printf("%s\n ", recv_buffer);
+        sendto(listen_sock, recv_buffer, ret + strlen(argv[1]), 0,(struct sockaddr*)&client_addr, addrlen);
     }
 
 }

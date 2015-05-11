@@ -98,7 +98,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
             inet_aton(p[j], &(sp[i].server_addr));
             sp[i].server_port = atoi(p[++j]);
             sp[i].weight = (unsigned int)atoi(p[++j]);
-            if(i == c/3){
+            if(i == (c/3 -1)){
                 sp[i].next = NULL;
             }else{
                 sp[i].next = &sp[i+1]; 
@@ -174,7 +174,7 @@ void parse_conf(char* conf_dir, struct conf_s *cp){
         for(i=0,j=0; j <c; j++,i++){
             ap[i].addr = inet_addr(p[j]);
             ap[i].mask = inet_addr(p[++j]);
-            if(i == c/2 ){
+            if(i == (c/2-1)){
                 ap[i].next = NULL;
             }else{
                 ap[i].next = &ap[i+1];

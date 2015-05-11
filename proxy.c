@@ -163,7 +163,11 @@ void* thread_main(void *argv){
             pthread_mutex_lock(&mutex);
             server_addr = pick_up_one();
             pthread_mutex_unlock(&mutex);
+            errno = 0;
             send_fd = socket(AF_INET,SOCK_DGRAM,0);
+            if(errno != 0 ){
+                log_error("create socket");
+            }
             while(1){
                 errno = 0 ;
                 if((ret = sendto(send_fd, buffer, strlen(buffer), 0 ,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))) < 0){
