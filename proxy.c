@@ -165,8 +165,9 @@ void* thread_main(void *argv){
             pthread_mutex_lock(&mutex);
             send_fd = socket(AF_INET,SOCK_DGRAM,0);
             while(1){
+                errno = 0 ;
                 if((ret = sendto(send_fd, buffer, strlen(buffer), 0 ,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))) < 0){
-                    if(ret == EINTR){
+                    if(errno == EINTR){
                         continue;
                     }else{
                         sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
@@ -233,13 +234,14 @@ void* thread_main(void *argv){
                     while(1){
                         bzero(recv_buffer,SO_MAX_MSG_SIZE );
                         recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
+                        errno = 0;
                         if((send_ret = sendto(listen_fd, recv_buffer, recv_size, 0 ,(struct sockaddr*)&tmp_cp->incoming_addr,sizeof(struct sockaddr))) < 0){
-                            if(ret == EINTR){
+                            if(errno == EINTR){
                                 continue;
                             }else{
                                 sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
                                 log_error(log_s);
-                                 break;
+                                break;
                             }
                         }else{
                             break;
@@ -278,9 +280,10 @@ void do_proxy(int listenfd){
     listen_event_fd = epoll_create(FDSIZE);
     add_event(listen_event_fd, listenfd, EPOLLIN);
     while(1){
+        errno = 0;
         ret = epoll_wait(listen_event_fd, events, MAXEVENT, -1);
         if(ret == -1){
-            if(ret == EINTR){
+            if(errno == EINTR){
                 continue;
             }else{
                 log_error("epoll_wait at listen fd");
@@ -290,11 +293,12 @@ void do_proxy(int listenfd){
         while(1){
             bzero(recv_buf, SO_MAX_MSG_SIZE);
             bzero ( &src_buf, sizeof(src_buf));  
+            errno = 0;
             size =  recvfrom(listenfd, recv_buf, SO_MAX_MSG_SIZE, 0, (struct sockaddr *)&src_buf, &addrlen);
-            if(size){
-                if(size == EWOULDBLOCK  || size == EAGAIN){
+            if(size == -1){
+                if(errno  == EWOULDBLOCK  || errno == EAGAIN){
                     break;
-                }else if(size == EINTR){
+                }else if(errno == EINTR){
                     continue;
                 }
                 
