@@ -4,7 +4,7 @@ Introduction
 ---
      This is proxy server for udp backend servers, with acess control, load balance ,timeout , and retransmission.
 
-Comiple
+Compile
 ---
     make clean; make 
 
