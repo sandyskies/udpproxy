@@ -79,7 +79,7 @@ static connection_t* del_list(connection_t *head, connection_t *node){
             if(tmp == head){
                 head = head->next;
                 while(p){
-                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr){
+                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr && htons(p->server_port) == tmp->outgoing_addr.sin_port){
                         p->count--;
                     }
                     p = p->next;
@@ -88,7 +88,7 @@ static connection_t* del_list(connection_t *head, connection_t *node){
                 return head;
             }else{
                 while(p){
-                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr){
+                    if( p->server_addr.s_addr ==  tmp->outgoing_addr.sin_addr.s_addr && htons(p->server_port) == tmp->outgoing_addr.sin_port){
                         p->count--;
                     }
                     p = p->next;
@@ -158,7 +158,6 @@ void* thread_main(void *argv){
     proxy_event_fd = epoll_create(FDSIZE);
     add_event(proxy_event_fd, pipe_fd[0], EPOLLIN );
     while(1){
- 
 
         if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, -1)) < 0){
             sprintf(log_s, "error happen while epoll_wait(),%s\n",strerror(errno));
@@ -171,7 +170,7 @@ void* thread_main(void *argv){
             for(i=0; i < ret; i++){
                 ret_fd = events[i].data.fd;
                 if(ret_fd == pipe_fd[0]){
-                    if(read(pipe_fd[0],c, 1) == 1){
+                    if(read(pipe_fd[0], c, 1) == 1){
                         bzero(&c_addr,sizeof(c_addr));
                         bzero(buffer,SO_MAX_MSG_SIZE);
                         if(deque(&c_addr, buffer)){
@@ -183,6 +182,7 @@ void* thread_main(void *argv){
                             log_info(log_s);
                             continue;
                         }
+                        bzero(&server_addr, sizeof(server_addr));
                         pthread_mutex_lock(&mutex);
                         server_addr = pick_up_one();
                         pthread_mutex_unlock(&mutex);

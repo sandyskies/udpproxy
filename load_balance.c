@@ -12,6 +12,7 @@ struct sockaddr_in pick_up_one(){
     }
     server_t *p=NULL,*q=NULL;
     int i,min;
+    float min_f;
 
     if(global_conf.loadbalance_method == rr){
         p = now;
@@ -28,11 +29,12 @@ struct sockaddr_in pick_up_one(){
         return server_addr;
     }
     if(global_conf.loadbalance_method == lc){
-        p = global_conf.forward_servers;
+        q = p = global_conf.forward_servers;
         min = p->count;
         while(p != NULL) {
             if( p->count < min  ){
                 q = p;
+                min = q->count; 
             } 
             p = p->next;
         }
@@ -44,13 +46,14 @@ struct sockaddr_in pick_up_one(){
         return server_addr;
     }
     if(global_conf.loadbalance_method == wlc){
-       p = global_conf.forward_servers;
-       min = p->count / p->weight;
+       q = p = global_conf.forward_servers;
+       min_f = (float)(p->count) / (float)(p->weight);
        while(p != NULL){
-           if(p->count / p->weight < min){
+           if((float)(p->count) / (float)(p->weight) < min_f){
                q = p;
+               min_f = (float)(q->count) / (float)(p->weight) ; 
            } 
-           p = q->next;
+           p = p->next;
        }
        bzero(&server_addr, sizeof(server_addr));
        server_addr.sin_family = AF_INET;   

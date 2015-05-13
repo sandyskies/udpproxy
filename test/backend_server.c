@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <unistd.h>
 
 
 
@@ -34,8 +35,8 @@ int main(int argc, char* argv[]){
                 }
             }
         //recv_buffer[ret] = '\0';
+//        sleep(1);
         strcat(recv_buffer, argv[1]);
-        printf("%s\n ", recv_buffer);
         sendto(listen_sock, recv_buffer, ret + strlen(argv[1]), 0,(struct sockaddr*)&client_addr, addrlen);
     }
 
