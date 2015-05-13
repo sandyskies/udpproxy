@@ -21,16 +21,24 @@ static void set_none_blocking(int sock){
 }
 
 static void add_event(int epollfd, int fd, int state){
+    int ret;
     struct epoll_event ev;
     ev.events = state;
     ev.data.fd = fd;
-    epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+    ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+    if(ret == -1){
+        log_error("epoll_ctl");
+    }
 }
 static void del_event(int epollfd, int fd, int state){
+    int ret;
     struct epoll_event ev;
     ev.events = state;
     ev.data.fd = fd;
     epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
+    if(ret == -1){
+        log_error("epoll_ctl");
+    }
 }
 
 static void format_cnode(connection_t *p, char* buffer, int outgoing_fd, int timeout_fd, struct sockaddr_in incoming_addr, struct sockaddr_in outgoing_addr){
@@ -49,7 +57,6 @@ static connection_t* in_list(connection_t *head, connection_t *node){
     connection_t *tmp;
     if(head == NULL){
         head = node;
-        return 0;
     }else{
         tmp = head->next;
         head->next = node;
@@ -103,15 +110,13 @@ static int  search_list(int fd, connection_t *head, connection_t **p){
             *p = q;
             return 1;
         }
-        if(q->outgoing_fd = fd){
+        if(q->outgoing_fd == fd){
             *p = q;
             return 2;
         }
         q = q->next;
     }
     return 0;
-    
-
 }
 
 
@@ -149,9 +154,10 @@ void* thread_main(void *argv){
     connection_t *tmp_cp;
     proxy_event_fd = epoll_create(FDSIZE);
     while(1){
-        bzero(&c_addr,sizeof(c_addr));
-        bzero(buffer,SO_MAX_MSG_SIZE);
         if(sem_trywait(&global_sem)){
+            log_debug("sem success");
+            bzero(&c_addr,sizeof(c_addr));
+            bzero(buffer,SO_MAX_MSG_SIZE);
             if(deque(&c_addr, buffer)){
                 log_warning("queue is empty, wait for main thread notify.");
                 continue;  
@@ -159,6 +165,7 @@ void* thread_main(void *argv){
             if(access_find(c_addr.sin_addr.s_addr, global_conf.acl_rules) != 1){
                 sprintf(log_s , "access_deny for client: %s\n",inet_ntoa(c_addr.sin_addr) );
                 log_info(log_s);
+                continue;
             }
             pthread_mutex_lock(&mutex);
             server_addr = pick_up_one();
@@ -182,19 +189,25 @@ void* thread_main(void *argv){
                     break;
                 }   
             }        
-            log_debug("sento sucess");
-            add_event(proxy_event_fd, send_fd, EPOLLIN);
+            log_debug("sendto sucess");
+            add_event(proxy_event_fd, send_fd, EPOLLIN );
             timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-            timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
-            add_event(proxy_event_fd, timeout_fd, EPOLLIN);
+            if(timeout_fd < 0){
+                log_error("timerfd_create()");
+            }
+            ret = timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
+            if(ret == -1 ){
+                log_error("settime");
+            }
+            add_event(proxy_event_fd, timeout_fd, EPOLLIN );
             tmp_cp = (connection_t*)malloc(sizeof(connection_t));
             format_cnode(tmp_cp,buffer, send_fd, timeout_fd, c_addr, server_addr);
             head = in_list(head, tmp_cp);  
 
         }  
-        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, global_conf.timeout )) < 0){
-            log_debug(log_s);
-            log_error("epoll_wait()");
+        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, global_conf.timeout * 1000)) < 0){
+            sprintf(log_s, "error happen while epoll_wait(),%s\n",strerror(errno));
+            log_error(log_s);
             continue;
         }else if(ret == 0){
             continue;
@@ -210,34 +223,43 @@ void* thread_main(void *argv){
                     for(j=0; j<ret; j++){
                         if(events[j].data.fd == tmp_cp->outgoing_fd){
                             /*something to read */
+                            log_debug("something happens.");
 
                             bzero(recv_buffer,SO_MAX_MSG_SIZE );
                             recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
                             sendto(listen_fd, recv_buffer, recv_size ,0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
                             del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                             del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                            close(tmp_cp->outgoing_fd);
+                            close(tmp_cp->timeout_fd);
                             head = del_list(head, tmp_cp); 
                             flag = 1;
                         }
                     }
                     if(tmp_cp->retry_time == 0 && flag == 0){
-                        sendto(listen_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
+                        log_debug("retrans");
+                        sendto(tmp_cp->outgoing_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
                         timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
                         timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
                         del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
+                        close(tmp_cp->timeout_fd);
                         add_event(proxy_event_fd, timeout_fd, EPOLLIN);
                         tmp_cp->timeout_fd = timeout_fd;
                         tmp_cp->retry_time += 1; 
                     }else{
+                            log_debug("drop packet because of timeout");
                             del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                             del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                            close(tmp_cp->timeout_fd);
+                            close(tmp_cp->outgoing_fd);
                             head = del_list(head, tmp_cp); 
                     }
 
 
 
-                }else{
+                }else if(type==2){
                     /* data to read*/
+                    log_debug("data to read");
                     while(1){
                         bzero(recv_buffer,SO_MAX_MSG_SIZE );
                         recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
@@ -256,10 +278,14 @@ void* thread_main(void *argv){
                     }
                     del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
                     del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                    close(tmp_cp->outgoing_fd);
+                    close(tmp_cp->timeout_fd);
                     head = del_list(head, tmp_cp); 
 
+                }else{
+                    log_error("Not found.");
                 }
-            }
+           } 
         }
     }    
 }
@@ -316,7 +342,9 @@ void do_proxy(int listenfd){
                   log_error("queue is full") ;
                   continue; 
                 }
-                sem_post(&global_sem);
+                if(sem_post(&global_sem)<0){
+                  log_debug("post fail");
+                }
             }
         }   
     }
