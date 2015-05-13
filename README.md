@@ -2,7 +2,7 @@
 
 Introduction
 ---
-     This is proxy server for udp backend servers, with acess control, load balance ,timeout , and retransmission.
+     This is proxy server for udp backend servers, with access control, load balance ,timeout , and retransmission.
 
 Compile
 ---
