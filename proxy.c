@@ -1,8 +1,10 @@
 #include "proxy.h"
 
 
-static sem_t global_sem; 
+//static sem_t global_sem; 
 pthread_mutex_t mutex;
+int pipe_fd[2];
+
 
 static void set_none_blocking(int sock){
     int opts;
@@ -128,6 +130,7 @@ void* thread_main(void *argv){
     char buffer[SO_MAX_MSG_SIZE];
     char recv_buffer[SO_MAX_MSG_SIZE];
     char log_s[100];
+    char c[1];
     int proxy_event_fd;
     int send_fd;
     int ret, i, send_ret,j,recv_size;
@@ -153,59 +156,11 @@ void* thread_main(void *argv){
     connection_t *head = NULL;
     connection_t *tmp_cp;
     proxy_event_fd = epoll_create(FDSIZE);
+    add_event(proxy_event_fd, pipe_fd[0], EPOLLIN );
     while(1){
-        if(sem_trywait(&global_sem)){
-            log_debug("sem success");
-            bzero(&c_addr,sizeof(c_addr));
-            bzero(buffer,SO_MAX_MSG_SIZE);
-            if(deque(&c_addr, buffer)){
-                log_warning("queue is empty, wait for main thread notify.");
-                continue;  
-            }
-            if(access_find(c_addr.sin_addr.s_addr, global_conf.acl_rules) != 1){
-                sprintf(log_s , "access_deny for client: %s\n",inet_ntoa(c_addr.sin_addr) );
-                log_info(log_s);
-                continue;
-            }
-            pthread_mutex_lock(&mutex);
-            server_addr = pick_up_one();
-            pthread_mutex_unlock(&mutex);
-            errno = 0;
-            send_fd = socket(AF_INET,SOCK_DGRAM,0);
-            if(errno != 0 ){
-                log_error("create socket");
-            }
-            while(1){
-                errno = 0 ;
-                if((ret = sendto(send_fd, buffer, strlen(buffer), 0 ,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))) < 0){
-                    if(errno == EINTR){
-                        continue;
-                    }else{
-                        sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
-                        log_error(log_s);
-                        break;
-                    }
-                }else{
-                    break;
-                }   
-            }        
-            log_debug("sendto sucess");
-            add_event(proxy_event_fd, send_fd, EPOLLIN );
-            timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-            if(timeout_fd < 0){
-                log_error("timerfd_create()");
-            }
-            ret = timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
-            if(ret == -1 ){
-                log_error("settime");
-            }
-            add_event(proxy_event_fd, timeout_fd, EPOLLIN );
-            tmp_cp = (connection_t*)malloc(sizeof(connection_t));
-            format_cnode(tmp_cp,buffer, send_fd, timeout_fd, c_addr, server_addr);
-            head = in_list(head, tmp_cp);  
+ 
 
-        }  
-        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, global_conf.timeout * 1000)) < 0){
+        if((ret = epoll_wait(proxy_event_fd, events, MAXEVENT, -1)) < 0){
             sprintf(log_s, "error happen while epoll_wait(),%s\n",strerror(errno));
             log_error(log_s);
             continue;
@@ -215,76 +170,130 @@ void* thread_main(void *argv){
             log_debug("events happens");
             for(i=0; i < ret; i++){
                 ret_fd = events[i].data.fd;
-                type = search_list(ret_fd, head, &tmp_cp); 
-                if(type == 1){
-                    /*timeout happens*/
-                    log_debug("timeout happens");
-                    flag = 0;
-                    for(j=0; j<ret; j++){
-                        if(events[j].data.fd == tmp_cp->outgoing_fd){
-                            /*something to read */
-                            log_debug("something happens.");
+                if(ret_fd == pipe_fd[0]){
+                    if(read(pipe_fd[0],c, 1) == 1){
+                        bzero(&c_addr,sizeof(c_addr));
+                        bzero(buffer,SO_MAX_MSG_SIZE);
+                        if(deque(&c_addr, buffer)){
+                            log_warning("queue is empty, wait for main thread notify.");
+                            continue;  
+                        }
+                        if(access_find(c_addr.sin_addr.s_addr, global_conf.acl_rules) != 1){
+                            sprintf(log_s , "access_deny for client: %s\n",inet_ntoa(c_addr.sin_addr) );
+                            log_info(log_s);
+                            continue;
+                        }
+                        pthread_mutex_lock(&mutex);
+                        server_addr = pick_up_one();
+                        pthread_mutex_unlock(&mutex);
+                        errno = 0;
+                        send_fd = socket(AF_INET,SOCK_DGRAM,0);
+                        if(errno != 0 ){
+                            log_error("create socket");
+                        }
+                        while(1){
+                            errno = 0 ;
+                            if((ret = sendto(send_fd, buffer, strlen(buffer), 0 ,(struct sockaddr*)&server_addr,sizeof(struct sockaddr))) < 0){
+                                if(errno == EINTR){
+                                    continue;
+                                }else{
+                                    sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
+                                    log_error(log_s);
+                                    break;
+                                }
+                            }else{
+                                break;
+                            }   
+                        }        
+                        log_debug("sendto sucess");
+                        add_event(proxy_event_fd, send_fd, EPOLLIN );
+                        timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+                        if(timeout_fd < 0){
+                            log_error("timerfd_create()");
+                        }
+                        ret = timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
+                        if(ret == -1 ){
+                            log_error("settime");
+                        }
+                        add_event(proxy_event_fd, timeout_fd, EPOLLIN );
+                        tmp_cp = (connection_t*)malloc(sizeof(connection_t));
+                        format_cnode(tmp_cp,buffer, send_fd, timeout_fd, c_addr, server_addr);
+                        head = in_list(head, tmp_cp); 
+                    }   
+                    
+                    
+                }else{
+                    type = search_list(ret_fd, head, &tmp_cp); 
+                    if(type == 1){
+                        /*timeout happens*/
+                        log_debug("timeout happens");
+                        flag = 0;
+                        for(j=0; j<ret; j++){
+                            if(events[j].data.fd == tmp_cp->outgoing_fd){
+                                /*something to read */
+                                log_debug("something happens.");
 
+                                bzero(recv_buffer,SO_MAX_MSG_SIZE );
+                                recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
+                                sendto(listen_fd, recv_buffer, recv_size ,0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
+                                del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
+                                del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                                close(tmp_cp->outgoing_fd);
+                                close(tmp_cp->timeout_fd);
+                                head = del_list(head, tmp_cp); 
+                                flag = 1;
+                            }
+                        }
+                        if(tmp_cp->retry_time == 0 && flag == 0){
+                            log_debug("retrans");
+                            sendto(tmp_cp->outgoing_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
+                            timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+                            timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
+                            del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
+                            close(tmp_cp->timeout_fd);
+                            add_event(proxy_event_fd, timeout_fd, EPOLLIN);
+                            tmp_cp->timeout_fd = timeout_fd;
+                            tmp_cp->retry_time += 1; 
+                        }else{
+                                log_debug("drop packet because of timeout");
+                                del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
+                                del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                                close(tmp_cp->timeout_fd);
+                                close(tmp_cp->outgoing_fd);
+                                head = del_list(head, tmp_cp); 
+                        }
+
+
+
+                    }else if(type==2){
+                        /* data to read*/
+                        log_debug("data to read");
+                        while(1){
                             bzero(recv_buffer,SO_MAX_MSG_SIZE );
                             recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
-                            sendto(listen_fd, recv_buffer, recv_size ,0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
-                            del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
-                            del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                            close(tmp_cp->outgoing_fd);
-                            close(tmp_cp->timeout_fd);
-                            head = del_list(head, tmp_cp); 
-                            flag = 1;
-                        }
-                    }
-                    if(tmp_cp->retry_time == 0 && flag == 0){
-                        log_debug("retrans");
-                        sendto(tmp_cp->outgoing_fd, tmp_cp->buffer, strlen(tmp_cp->buffer),0,(struct sockaddr*)&tmp_cp->incoming_addr, sizeof(struct sockaddr));
-                        timeout_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-                        timerfd_settime(timeout_fd, 0, &new_timeout, &old_timeout);
-                        del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
-                        close(tmp_cp->timeout_fd);
-                        add_event(proxy_event_fd, timeout_fd, EPOLLIN);
-                        tmp_cp->timeout_fd = timeout_fd;
-                        tmp_cp->retry_time += 1; 
-                    }else{
-                            log_debug("drop packet because of timeout");
-                            del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
-                            del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                            close(tmp_cp->timeout_fd);
-                            close(tmp_cp->outgoing_fd);
-                            head = del_list(head, tmp_cp); 
-                    }
-
-
-
-                }else if(type==2){
-                    /* data to read*/
-                    log_debug("data to read");
-                    while(1){
-                        bzero(recv_buffer,SO_MAX_MSG_SIZE );
-                        recv_size = recvfrom(tmp_cp->outgoing_fd, recv_buffer,SO_MAX_MSG_SIZE , 0, &tmp_addr, &sa_size);
-                        errno = 0;
-                        if((send_ret = sendto(listen_fd, recv_buffer, recv_size, 0 ,(struct sockaddr*)&tmp_cp->incoming_addr,sizeof(struct sockaddr))) < 0){
-                            if(errno == EINTR){
-                                continue;
+                            errno = 0;
+                            if((send_ret = sendto(listen_fd, recv_buffer, recv_size, 0 ,(struct sockaddr*)&tmp_cp->incoming_addr,sizeof(struct sockaddr))) < 0){
+                                if(errno == EINTR){
+                                    continue;
+                                }else{
+                                    sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
+                                    log_error(log_s);
+                                    break;
+                                }
                             }else{
-                                sprintf(log_s, "error happen while sendto(),%s\n",strerror(errno));
-                                log_error(log_s);
                                 break;
-                            }
-                        }else{
-                            break;
-                        }   
-                    }
-                    del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
-                    del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
-                    close(tmp_cp->outgoing_fd);
-                    close(tmp_cp->timeout_fd);
-                    head = del_list(head, tmp_cp); 
+                            }   
+                        }
+                        del_event(proxy_event_fd, tmp_cp->timeout_fd, EPOLLIN);
+                        del_event(proxy_event_fd, tmp_cp->outgoing_fd, EPOLLIN);
+                        close(tmp_cp->outgoing_fd);
+                        close(tmp_cp->timeout_fd);
+                        head = del_list(head, tmp_cp); 
 
-                }else{
-                    log_error("Not found.");
-                }
+                    }else{
+                        log_error("Not found.");
+                    }
+                }    
            } 
         }
     }    
@@ -302,7 +311,8 @@ void do_proxy(int listenfd){
     struct epoll_event events[MAXEVENT];
     struct sockaddr_in src_buf;
     int addrlen = sizeof(struct sockaddr_in);
-    sem_init(&global_sem, 0, MAXLEN);
+    //sem_init(&global_sem, 0, MAXLEN);
+    pipe(pipe_fd);
     pthread_mutex_init(&mutex, NULL);
 
     char recv_buf[SO_MAX_MSG_SIZE];
@@ -342,9 +352,9 @@ void do_proxy(int listenfd){
                   log_error("queue is full") ;
                   continue; 
                 }
-                if(sem_post(&global_sem)<0){
-                  log_debug("post fail");
-                }
+  /*              if(sem_post(&global_sem)<0){
+                  log_debug("post fail"); */
+                write(pipe_fd[1], "1", 1);
             }
         }   
     }
