@@ -15,7 +15,7 @@ void initQue()
     return;
 }
 
-int enque(struct sockaddr_in elem, char* buffer)
+int enque(struct sockaddr_in elem, char* buffer, int size)
 {
     do
     {
@@ -25,13 +25,14 @@ int enque(struct sockaddr_in elem, char* buffer)
         }
     }while(!CAS(&(g_que.elePool[g_que.rear].status),EMPTY,FULL));
     g_que.elePool[g_que.rear].elem = elem;
-    strcpy(g_que.elePool[g_que.rear].buffer, buffer);
+    g_que.elePool[g_que.rear].size = size;
+    memcpy(g_que.elePool[g_que.rear].buffer, buffer, size);
     CAS(&(g_que.rear),g_que.rear,(g_que.rear+1)%MAXLEN);
     
     return 0;
 }
 
-int deque(struct sockaddr_in* pElem, char* buffer)
+int deque(struct sockaddr_in* pElem, char* buffer, int *size)
 {
     do
     {
@@ -42,8 +43,9 @@ int deque(struct sockaddr_in* pElem, char* buffer)
     }while(!CAS(&(g_que.elePool[g_que.front].status),FULL,EMPTY));
     //*pElem = g_que.elePool[g_que.front].elem;
     memcpy(pElem, &g_que.elePool[g_que.front].elem ,sizeof(struct sockaddr_in));
-    strcpy(buffer, g_que.elePool[g_que.front].buffer);
-    bzero(&g_que.elePool[g_que.front].buffer,strlen(g_que.elePool[g_que.front].buffer));
+    memcpy(buffer, g_que.elePool[g_que.front].buffer,g_que.elePool[g_que.front].size);
+    *size = g_que.elePool[g_que.front].size;
+    bzero(&g_que.elePool[g_que.front].buffer,SO_MAX_MSG_SIZE);
     bzero(&g_que.elePool[g_que.front].elem,sizeof(struct sockaddr_in));
     CAS(&(g_que.front),g_que.front,(g_que.front+1)%MAXLEN);
     return 0;

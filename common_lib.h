@@ -42,6 +42,7 @@ typedef struct conf_s{
 
 typedef struct connection_s{
     char buffer[SO_MAX_MSG_SIZE];
+    int size;
     int outgoing_fd;
     int timeout_fd;
     struct sockaddr_in incoming_addr;

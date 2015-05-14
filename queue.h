@@ -17,6 +17,7 @@ typedef struct
 {
     struct sockaddr_in elem;
     char buffer[SO_MAX_MSG_SIZE];
+    int size;
     int status;
 
 }node;
@@ -40,7 +41,7 @@ extern queue g_que;
 
 
 void initQue();
-int enque(struct sockaddr_in elem, char* buffer);
-int deque(struct sockaddr_in* pElem, char* buffer);
+int enque(struct sockaddr_in elem, char* buffer, int size);
+int deque(struct sockaddr_in* pElem, char* buffer, int *size);
 
 
