@@ -35,6 +35,9 @@ Configuration
     ;only the clients in thoses subnet are able to send request, if not, the data will be ignored. 
     white_lists=10.0.0.0/255.0.0.0,172.16.0.0/255.240.0.0,127.0.0.1/255.255.255.255
     
+    Note: We didn't use library to parse, Please to keep the exact format in the conf.ini. Do not add comment line
+    or new line in the configuration.
+    
 usage
 ---
     usage: ./udpproxy -c path_to_configure_file -d -h
