@@ -36,7 +36,7 @@ Configuration
     white_lists=10.0.0.0/255.0.0.0,172.16.0.0/255.240.0.0,127.0.0.1/255.255.255.255
     
     Note: We didn't use library to parse, Please to keep the exact format in the conf.ini. Do not add comment line
-    or new line in the configuration ，in case of something tragic happend .
+    , new line  or space in the configuration ，in case of something tragic happend .
     
 usage
 ---
